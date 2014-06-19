@@ -27,6 +27,7 @@ public class Node implements Runnable {
         }
     }
     private LamportClock localclock;
+    private LamportMutex mutex;
     private int pid;
     private int port;
     private boolean requested_crit = false;
@@ -50,6 +51,17 @@ public class Node implements Runnable {
     public void deliver_message(Message msg) {
         this.localclock.msg_event(msg.getClock());
         System.out.println("from: "+msg.getSender());
+
+        if      (msg.getType() == "request") {
+            mutex.queue_request(msg);
+            /*
+            in version 1, send reply to all requests whatsoever
+             */
+            send_message(msg.getSender(),"reply");
+        }
+        else if (msg.getType() == "release") {
+            mutex.release_request(msg);
+        }
     }
 
     public void send_message(int receiver, String type) {
