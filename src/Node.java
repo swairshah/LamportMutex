@@ -48,6 +48,7 @@ public class Node implements Runnable {
                 other_pids.add(id);
             }
         }
+        this.mutex = new LamportMutex(this);
     }
 
     public int getPid() { return this.pid; }
@@ -60,7 +61,7 @@ public class Node implements Runnable {
 
     public void deliver_message(Message msg) {
         this.localclock.msg_event(msg.getClock());
-        System.out.println("from: "+msg.getSender());
+        //System.out.println(msg.getType()+" from: "+msg.getSender());
 
         if      (msg.getType() == "request") {
             mutex.queue_request(msg);
