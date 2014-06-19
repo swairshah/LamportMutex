@@ -72,6 +72,9 @@ public class Node implements Runnable {
         else if (msg.getType() == "release") {
             mutex.release_request(msg);
         }
+        else if (msg.getType() == "reply") {
+            mutex.reply_request(msg);
+        }
     }
 
     public void send_message(int receiver, String type) {
