@@ -34,7 +34,7 @@ public class Node implements Runnable {
     private int port;
     private boolean requested_crit = false;
     private NodeLookup lookup; // "pid" -> "ip:port"
-    private List<Integer> other_pids;
+    public final List<Integer> other_pids;
 
     public Node(int pid, String ConfigFile) {
         this.pid = pid;
