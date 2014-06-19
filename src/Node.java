@@ -3,7 +3,9 @@ import sun.misc.resources.Messages_sv;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -32,12 +34,20 @@ public class Node implements Runnable {
     private int port;
     private boolean requested_crit = false;
     private NodeLookup lookup; // "pid" -> "ip:port"
+    private List<Integer> other_pids;
 
     public Node(int pid, String ConfigFile) {
         this.pid = pid;
         this.lookup = new NodeLookup(ConfigReader.getLookup(ConfigFile));
         this.port = lookup.getPort(pid);
         this.localclock = new LamportClock();
+        this.other_pids = new ArrayList<Integer>();
+        for(String i :lookup.table.keySet()) {
+            int id = Integer.parseInt(i);
+            if(id!=this.pid) {
+                other_pids.add(id);
+            }
+        }
     }
 
     public int getPid() { return this.pid; }
