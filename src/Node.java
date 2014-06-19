@@ -29,7 +29,7 @@ public class Node implements Runnable {
     private LamportClock localclock;
     private int pid;
     private int port;
-
+    private boolean requested_crit = false;
     private NodeLookup lookup; // "pid" -> "ip:port"
 
     public Node(int pid, String ConfigFile) {
@@ -112,8 +112,11 @@ public class Node implements Runnable {
                 multicast("application");
                 //send application messages to all other processes (nodes)
             } else {
-                //System.out.println("ask for critical section");
-                //ask for critical section
+                if(requested_crit) { continue; }
+                else {
+                    //System.out.println("ask for critical section");
+                    //ask for critical section
+                }
             }
         }
     }
