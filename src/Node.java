@@ -111,6 +111,12 @@ public class Node implements Runnable {
         }
     }
 
+    private void execute_crit() {
+        try {
+            Thread.sleep(200);
+        } catch(InterruptedException ex) {}
+    }
+
     @Override
     public void run() {
         try {
@@ -130,15 +136,15 @@ public class Node implements Runnable {
 
             int decider = rand.nextInt(101 - 1) + 1;
             if (decider >= 1 && decider <= 90) {
-                //send application message
                 multicast("application");
-                //send application messages to all other processes (nodes)
             } else {
-                if(requested_crit) { continue; }
-                else {
-                    //System.out.println("ask for critical section");
-                    //ask for critical section
+                multicast("request");
+                while(!mutex.request_crit_section()) {
+                    System.out.println("waiting for crit section");
                 }
+                execute_crit();
+                multicast("release");
+                mutex.release_request();
             }
         }
     }
