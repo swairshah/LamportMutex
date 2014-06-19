@@ -1,9 +1,10 @@
 import java.io.Serializable;
+import java.util.Comparator;
 
 /**
  * Created by swair on 6/17/14.
  */
-public class Message implements Serializable {
+public class Message implements Serializable, Comparable<Message> {
     final int from,to;
     final int clock;
     final String type;
@@ -13,6 +14,16 @@ public class Message implements Serializable {
         this.clock = builder.clock;
         this.type = builder.type;
         this.content = builder.content;
+    }
+    @Override
+    public int compareTo(Message that) {
+        if      (this.clock > that.getClock()) return +1;
+        else if (this.clock < that.getClock()) return -1;
+        else { //Break ties with pid;
+            if(this.getSender() > that.getSender()) return +1;
+            else return -1;
+            //PID SHOULD NEVER BE EQUAL
+        }
     }
 
     public int getSender() {return from;}
