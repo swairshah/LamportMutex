@@ -26,6 +26,11 @@ public class Message implements Serializable, Comparable<Message> {
         }
     }
 
+    @Override
+    public String toString() {
+        return String.format(from+" "+clock);
+    }
+
     public int getSender() {return from;}
     public int getReceiver() {return to;}
     public int getClock() {return clock;}
