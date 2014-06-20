@@ -84,22 +84,32 @@ public class Node implements Runnable {
                 .to(receiver)
                 .from(this.pid)
                 .clock(this.localclock.peek())
-                .type("application").build();
-        String receiver_ip = lookup.getIP(receiver);
-        int receiver_port = lookup.getPort(receiver);
+                .type(type).build();
+        /*
+        If sending message to self?
+        type should better be "request"
+         */
+        if(receiver == this.pid && type == "request") {
+            this.mutex.queue_request(msg);
+            //TODO: is this a local event??
+        }
+        else {
+            String receiver_ip = lookup.getIP(receiver);
+            int receiver_port = lookup.getPort(receiver);
 
-        try (Socket sock = new Socket(receiver_ip, receiver_port)) {
-            OutputStream out = sock.getOutputStream();
-            ObjectOutputStream outstream = new ObjectOutputStream(out);
-            outstream.writeObject(msg);
-            outstream.close();
-            out.close();
-            sock.close();
+            try (Socket sock = new Socket(receiver_ip, receiver_port)) {
+                OutputStream out = sock.getOutputStream();
+                ObjectOutputStream outstream = new ObjectOutputStream(out);
+                outstream.writeObject(msg);
+                outstream.close();
+                out.close();
+                sock.close();
 
-            this.localclock.local_event();
+                this.localclock.local_event();
 
-        } catch (IOException ex) {
-            System.err.println("can't send message" + ex);
+            } catch (IOException ex) {
+                System.err.println("can't send message" + ex);
+            }
         }
     }
 
@@ -143,8 +153,11 @@ public class Node implements Runnable {
                 multicast("application");
             } else {
                 multicast("request");
+                //enque message for own request
+
+                send_message(this.pid,"request");
+                System.out.println("waiting for crit section");
                 while(!mutex.request_crit_section()) {
-                    System.out.println("waiting for crit section");
                 }
                 execute_crit();
                 multicast("release");
