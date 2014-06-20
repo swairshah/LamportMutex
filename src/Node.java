@@ -61,19 +61,19 @@ public class Node implements Runnable {
 
     public void deliver_message(Message msg) {
         this.localclock.msg_event(msg.getClock());
-        //System.out.println(msg.getType()+" from: "+msg.getSender());
-
-        if      (msg.getType() == "request") {
+        if      (msg.getType().equals("request")) {
+            System.out.println(msg.getType()+" from: "+msg.getSender());
             mutex.queue_request(msg);
             /*
             in version 1, send reply to all requests whatsoever
              */
             send_message(msg.getSender(),"reply");
         }
-        else if (msg.getType() == "release") {
+        else if (msg.getType().equals("release")) {
             mutex.release_request(msg);
         }
-        else if (msg.getType() == "reply") {
+        else if (msg.getType().equals("reply")) {
+            System.out.println(msg.getType()+" from: "+msg.getSender());
             mutex.reply_request(msg);
         }
     }
