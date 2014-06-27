@@ -35,6 +35,7 @@ public class Node implements Runnable {
     private boolean requested_crit = false;
     private NodeLookup lookup; // "pid" -> "ip:port"
     public final List<Integer> other_pids;
+    private HashMap<Integer, Socket> chan_map;
 
     public Node(int pid, String ConfigFile) {
         this.pid = pid;
@@ -49,8 +50,33 @@ public class Node implements Runnable {
             }
         }
         this.mutex = new LamportMutex(this);
+        this.chan_map = new HashMap<Integer,Socket>();
     }
 
+    /*
+    call init_connections before starting the main node thread,
+    wait for 2 seconds on each exception and keep trying to
+    establish all connections before going further
+     */
+    public void init_connections() {
+        for(int pid: other_pids) {
+            if(this.chan_map.containsKey(pid)) {
+                continue;
+            }
+            String receiver_ip = lookup.getIP(pid);
+            int receiver_port = lookup.getPort(pid);
+            try (Socket sock = new Socket(receiver_ip, receiver_port)) {
+                //OutputStream out = sock.getOutputStream();
+                chan_map.put(pid,sock);
+            } catch(IOException ex) {
+                System.out.println("trying to establish connections with "+receiver_ip+":"+receiver_port);
+                try {
+                    Thread.sleep(1000);
+                } catch(InterruptedException exp) {}
+                init_connections();
+            }
+        }
+    }
     public int getPid() { return this.pid; }
     public int getPort() { return this.port;}
 
@@ -138,6 +164,7 @@ public class Node implements Runnable {
         } catch (InterruptedException ex) {}
 
         run_listener();
+        init_connections();
         while(true) {
             Random rand = new Random();
             int sleeptime = rand.nextInt(101 - 10) + 10;
