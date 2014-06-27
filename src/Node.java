@@ -86,6 +86,7 @@ public class Node implements Runnable {
     }
 
     public void deliver_message(Message msg) {
+        System.out.println(msg.getType()+".from..."+msg.getSender());
         this.localclock.msg_event(msg.getClock());
         if      (msg.getType().equals("request")) {
             System.out.println(msg.getType()+" from: "+msg.getSender());
@@ -152,6 +153,7 @@ public class Node implements Runnable {
     }
 
     private void execute_crit() {
+        System.out.println("executing crit");
         try {
             Thread.sleep(200);
         } catch(InterruptedException ex) {}
