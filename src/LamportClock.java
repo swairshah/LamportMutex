@@ -9,14 +9,14 @@ public class LamportClock {
         this.d = d;
     }
 
-    public void local_event() { clock += d; }
+    public synchronized void local_event() { clock += d; }
 
-    public void msg_event(int msg_clock) {
+    public synchronized void msg_event(int msg_clock) {
         this.local_event();
-        if (msg_clock >= this.clock) {
-            clock = msg_clock;
+        if (msg_clock + d >= this.clock) {
+            clock = msg_clock + d;
         }
     }
-
+    public int increment() {return d;}
     public int peek() { return clock; }
 }
