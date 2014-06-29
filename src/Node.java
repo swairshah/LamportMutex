@@ -45,6 +45,9 @@ public class Node implements Runnable {
     private long delay_per_crit = 0;
     private PrintWriter log_writer;
 
+    //total crit section executions - Stop after 20
+    private int crit_executions = 0;
+
     public Node(int pid, String ConfigFile) {
         this.pid = pid;
         this.lookup = new NodeLookup(ConfigReader.getLookup(ConfigFile));
@@ -139,7 +142,9 @@ public class Node implements Runnable {
         if (type.equals("application")) {
             this.total_application_msgs += 1;
         } else {
-            this.total_protocol_msgs += 1;
+            if(receiver != this.pid) {
+                this.total_protocol_msgs += 1;
+            }
         }
         Message msg = new Message.MessageBuilder()
                 .to(receiver)
@@ -191,6 +196,7 @@ public class Node implements Runnable {
     private synchronized void execute_crit() {
         write_sharedlog("Entering");
         System.out.println("executing crit");
+        this.crit_executions += 1;
         try {
             Thread.sleep(2000);
         } catch(InterruptedException ex) {}
@@ -220,11 +226,13 @@ public class Node implements Runnable {
             }
 
             int decider = rand.nextInt(101 - 1) + 1;
-            if (decider >= 1 && decider <= 90) {
+            if (this.crit_executions >= 20) {
+                System.out.println("I'm done");
+            }
+            else if (decider >= 1 && decider <= 90) {
                 multicast("application");
-            } else {
-                //enque message for own request
-
+            }
+            else {
                 long startTime = System.currentTimeMillis();
                 int proto_messages_before = this.total_protocol_msgs;
 
