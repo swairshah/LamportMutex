@@ -117,7 +117,7 @@ public class Node implements Runnable {
         }
         else if (msg.getType().equals("release")) {
             System.out.println(msg.getType()+".from..."+msg);
-            this.total_protocol_msgs += 1;
+            //this.total_protocol_msgs += 1;
             mutex.release_request(msg);
         }
         else if (msg.getType().equals("reply")) {
