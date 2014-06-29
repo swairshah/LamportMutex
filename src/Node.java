@@ -61,7 +61,7 @@ public class Node implements Runnable {
         String file_name = "node"+this.pid+".log";
         try {
             this.log_writer = new PrintWriter(file_name, "UTF-8");
-            log_writer.println("proto_msgs\r\t\tdelay_duration");
+            log_writer.println(String.format("%-12s %-12s","proto_msgs","delay_duration"));
         } catch(FileNotFoundException |UnsupportedEncodingException ex) {
              ex.printStackTrace();
         }
@@ -175,7 +175,7 @@ public class Node implements Runnable {
         this.localclock.local_event();
         if(type.equals("request")) {
             System.out.println("sending request at "+localclock.peek());
-            send_message(this.pid,type);
+            send_message(this.pid, type);
         }
         for(String pid_str: lookup.table.keySet()) {
             int pid_int = Integer.parseInt(pid_str);
@@ -189,10 +189,12 @@ public class Node implements Runnable {
     }
 
     private synchronized void execute_crit() {
+        write_sharedlog("Entering");
         System.out.println("executing crit");
         try {
-            Thread.sleep(200);
+            Thread.sleep(2000);
         } catch(InterruptedException ex) {}
+        write_sharedlog("Leaving");
     }
 
     @Override
@@ -208,9 +210,6 @@ public class Node implements Runnable {
            }
         });
         while(true) {
-            try {
-                Thread.sleep(2000);
-            } catch(InterruptedException ex) {}
             Random rand = new Random();
             int sleeptime = rand.nextInt(101 - 10) + 10;
 
@@ -247,12 +246,23 @@ public class Node implements Runnable {
     }
 
     public synchronized void log_and_reset() {
-        log_writer.println(this.count_per_crit+"\r\t\t"+this.delay_per_crit);
+        log_writer.println(String.format("%-12s %-12s",this.count_per_crit,this.delay_per_crit));
         this.delay_per_crit = 0;
         this.count_per_crit = 0;
     }
 
+    public synchronized void write_sharedlog(String action) {
+        try {
+            Writer sharedlog_writer = new PrintWriter(new FileWriter("shared.log",true));
+            sharedlog_writer.append(
+                    String.format("%-5s %-10s %-6s\n",this.pid,action,localclock.peek()));
+            sharedlog_writer.close();
+        } catch(IOException ex) {
+            ex.printStackTrace();
+        }
+    }
     public void cleanup() {
+        log_writer.println("total application messages sent: "+this.total_application_msgs);
         this.log_writer.close();
     }
 
