@@ -37,6 +37,14 @@ public class Node implements Runnable {
     public final List<Integer> other_pids;
     private HashMap<Integer, Socket> chan_map;
 
+    // data collection stuff
+    private int total_application_msgs = 0;
+    private int total_protocol_msgs = 0;
+
+    private int count_per_crit = 0;
+    private long delay_per_crit = 0;
+    private PrintWriter log_writer;
+
     public Node(int pid, String ConfigFile) {
         this.pid = pid;
         this.lookup = new NodeLookup(ConfigReader.getLookup(ConfigFile));
@@ -50,6 +58,13 @@ public class Node implements Runnable {
             }
         }
         this.mutex = new LamportMutex(this);
+        String file_name = "node"+this.pid+".log";
+        try {
+            this.log_writer = new PrintWriter(file_name, "UTF-8");
+            log_writer.println("proto_msgs\r\t\tdelay_duration");
+        } catch(FileNotFoundException |UnsupportedEncodingException ex) {
+             ex.printStackTrace();
+        }
         this.chan_map = new HashMap<Integer,Socket>();
     }
 
@@ -85,11 +100,12 @@ public class Node implements Runnable {
         listener.start();
     }
 
-    public void deliver_message(Message msg) {
-        System.out.println(msg.getType()+".from..."+msg.getSender());
+    public synchronized void deliver_message(Message msg) {
+        //System.out.println(msg+"  "+msg.getType()+".from..."+msg.getSender()+"   local clock: "+localclock.peek());
         this.localclock.msg_event(msg.getClock());
+        //System.out.println("new local clock: "+localclock.peek());
         if      (msg.getType().equals("request")) {
-            System.out.println(msg.getType()+" from: "+msg.getSender());
+            System.out.println(msg.getType()+".from..."+msg);
             mutex.queue_request(msg);
             /*
             in version 1, send reply to all requests whatsoever
@@ -97,16 +113,34 @@ public class Node implements Runnable {
             send_message(msg.getSender(),"reply");
         }
         else if (msg.getType().equals("release")) {
+            System.out.println(msg.getType()+".from..."+msg);
+            this.total_protocol_msgs += 1;
             mutex.release_request(msg);
         }
         else if (msg.getType().equals("reply")) {
-            System.out.println(msg.getType()+" from: "+msg.getSender());
+            System.out.println(msg.getType()+".from..."+msg);
+            this.total_protocol_msgs += 1;
             mutex.reply_request(msg);
         }
     }
 
-    public void send_message(int receiver, String type) {
-        //System.out.println("sending message from:"+ pid+" to "+receiver);o
+    public synchronized void send_message(int receiver, String type) {
+        //System.out.println("sending message from:"+ pid+" to "+receiver);
+
+        /*
+        reply messages are never multicasts so
+        we have to increase the local clock in send_message method
+         */
+        if(type.equals("reply")) {
+            this.localclock.local_event();
+        }
+
+        //Data collection
+        if (type.equals("application")) {
+            this.total_application_msgs += 1;
+        } else {
+            this.total_protocol_msgs += 1;
+        }
         Message msg = new Message.MessageBuilder()
                 .to(receiver)
                 .from(this.pid)
@@ -116,9 +150,8 @@ public class Node implements Runnable {
         If sending message to self?
         type should better be "request"
          */
-        if(receiver == this.pid && type == "request") {
+        if(receiver == this.pid && type.equals("request")) {
             this.mutex.queue_request(msg);
-            //TODO: is this a local event??
         }
         else {
             String receiver_ip = lookup.getIP(receiver);
@@ -132,15 +165,18 @@ public class Node implements Runnable {
                 out.close();
                 sock.close();
 
-                this.localclock.local_event();
-
             } catch (IOException ex) {
                 System.err.println("can't send message" + ex);
             }
         }
     }
 
-    public void multicast(String type) {
+    public synchronized void multicast(String type) {
+        this.localclock.local_event();
+        if(type.equals("request")) {
+            System.out.println("sending request at "+localclock.peek());
+            send_message(this.pid,type);
+        }
         for(String pid_str: lookup.table.keySet()) {
             int pid_int = Integer.parseInt(pid_str);
             if (pid_int == this.pid) {
@@ -152,7 +188,7 @@ public class Node implements Runnable {
         }
     }
 
-    private void execute_crit() {
+    private synchronized void execute_crit() {
         System.out.println("executing crit");
         try {
             Thread.sleep(200);
@@ -161,13 +197,20 @@ public class Node implements Runnable {
 
     @Override
     public void run() {
+        run_listener();
         try {
-            Thread.sleep(3000);//till I start other processes;
+            Thread.sleep(5000);//till I start other processes;
         } catch (InterruptedException ex) {}
 
-        run_listener();
-        init_connections();
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+           public void run() {
+               cleanup();
+           }
+        });
         while(true) {
+            try {
+                Thread.sleep(2000);
+            } catch(InterruptedException ex) {}
             Random rand = new Random();
             int sleeptime = rand.nextInt(101 - 10) + 10;
 
@@ -181,18 +224,36 @@ public class Node implements Runnable {
             if (decider >= 1 && decider <= 90) {
                 multicast("application");
             } else {
-                multicast("request");
                 //enque message for own request
 
-                send_message(this.pid,"request");
-                System.out.println("waiting for crit section");
+                long startTime = System.currentTimeMillis();
+                int proto_messages_before = this.total_protocol_msgs;
+
+                //multicast("request"); -- do that inside LamportMutex
                 while(!mutex.request_crit_section()) {
+                    //keep checking if we can enter crit or not.
                 }
+                long endTime = System.currentTimeMillis();
+                long duration = (endTime - startTime);
                 execute_crit();
-                multicast("release");
                 mutex.release_request();
+                multicast("release");
+                int proto_messages_after = this.total_protocol_msgs;
+                this.delay_per_crit = duration;
+                this.count_per_crit = proto_messages_after - proto_messages_before;
+                log_and_reset();
             }
         }
+    }
+
+    public synchronized void log_and_reset() {
+        log_writer.println(this.count_per_crit+"\r\t\t"+this.delay_per_crit);
+        this.delay_per_crit = 0;
+        this.count_per_crit = 0;
+    }
+
+    public void cleanup() {
+        this.log_writer.close();
     }
 
     public static void main(String[] args) {

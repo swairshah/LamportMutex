@@ -11,24 +11,24 @@ public class LamportMutex {
     List<Message> requestList;
 
     private boolean request_made;
-    private List<Integer> pending_replies;
+    public List<Integer> pending_replies;
 
     public LamportMutex(Node n) {
         node_ref = n;
-        requestList = new ArrayList<Message>() {
-            public boolean add(Message msg) {
+        requestList = Collections.synchronizedList(new ArrayList<Message>() {
+            public synchronized boolean add(Message msg) {
                 boolean ret = super.add(msg);
                 Collections.sort(requestList);
                 return ret;
             }
-        };
+        });
     }
 
-    public void queue_request(Message msg) {
+    public synchronized void queue_request(Message msg) {
         requestList.add(msg);
     }
 
-    public void release_request(Message msg) {
+    public synchronized void release_request(Message msg) {
         int pid = msg.getSender();
         /* the first msg in the list should be the one
            to be released. otherwise something is wrong
@@ -41,7 +41,7 @@ public class LamportMutex {
         }
     }
 
-    public void release_request() {
+    public synchronized void release_request() {
         /*
         this is called when the local node
         is done executing crit section
@@ -51,17 +51,20 @@ public class LamportMutex {
     }
 
 
-    public boolean request_crit_section() {
+    public synchronized boolean request_crit_section() {
         /* on true, node can enter the crit section,
-           on false node can not. and then on each
-           release message AND reply message,
-           node checks if it has already requested_crit,
-           if yes, call request_crit_section on mutex again.
-           on the mutex
+           on false node can not. and then node blocks exec
+           till it gets critical section.
         */
         if (!request_made) {
             request_made = true;
             pending_replies = new ArrayList<>(node_ref.other_pids);
+            /*
+            we need our data structures prepared before we start getting
+            replies from other nodes!,
+            so once that is done, multicast request.
+             */
+            node_ref.multicast("request");
         }
         if(requestList.get(0).getSender() == node_ref.getPid()) {
             /* we're highest priority!, now wait for all replies */
@@ -76,8 +79,10 @@ public class LamportMutex {
         return false;
     }
 
-    public void reply_request(Message msg) {
+    public synchronized void reply_request(Message msg) {
         if(request_made) {
+            System.out.println("pending replies: "+pending_replies);
+            System.out.println("request queue:"+requestList);
             pending_replies.remove(new Integer(msg.getSender()));
         }
         else {
