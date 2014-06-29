@@ -143,7 +143,12 @@ public class Node implements Runnable {
             this.total_application_msgs += 1;
         } else {
             if(receiver != this.pid) {
-                this.total_protocol_msgs += 1;
+                /*
+                the replies you send are not for YOUR
+                crit execution requests.
+                 */
+                if (!type.equals("reply"))
+                    this.total_protocol_msgs += 1;
             }
         }
         Message msg = new Message.MessageBuilder()
