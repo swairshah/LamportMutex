@@ -51,8 +51,9 @@ public class Node implements Runnable {
     public Node(int pid, String ConfigFile) {
         this.pid = pid;
         this.lookup = new NodeLookup(ConfigReader.getLookup(ConfigFile));
+        //System.out.println("clock from config: "+ConfigReader.clocks.get(this.pid));
         this.port = lookup.getPort(pid);
-        this.localclock = new LamportClock();
+        this.localclock = new LamportClock(ConfigReader.clocks.get(this.pid));
         this.other_pids = new ArrayList<Integer>();
         for(String i :lookup.table.keySet()) {
             int id = Integer.parseInt(i);
