@@ -88,11 +88,6 @@ public class Node implements Runnable {
                 //OutputStream out = sock.getOutputStream();
                 chan_map.put(pid,sock);
             } catch(IOException ex) {
-                System.out.println("trying to establish connections with "+receiver_ip+":"+receiver_port);
-                try {
-                    Thread.sleep(1000);
-                } catch(InterruptedException exp) {}
-                init_connections();
             }
         }
     }
@@ -167,8 +162,18 @@ public class Node implements Runnable {
         else {
             String receiver_ip = lookup.getIP(receiver);
             int receiver_port = lookup.getPort(receiver);
-
-            try (Socket sock = new Socket(receiver_ip, receiver_port)) {
+            Socket sock;
+            try {
+                if(chan_map.get(receiver) != null) {
+                    if(!chan_map.get(receiver).isClosed()) {
+                        sock = chan_map.get(receiver);
+                    } else {
+                        sock = new Socket(receiver_ip, receiver_port);
+                    }
+                } else {
+                    sock = new Socket(receiver_ip, receiver_port);
+                }
+                chan_map.put(receiver,sock);
                 OutputStream out = sock.getOutputStream();
                 ObjectOutputStream outstream = new ObjectOutputStream(out);
                 outstream.writeObject(msg);
