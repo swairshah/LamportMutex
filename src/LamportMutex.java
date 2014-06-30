@@ -37,7 +37,7 @@ public class LamportMutex {
             requestList.remove(0);
         }
         else {
-            System.err.println("release message wasn't from the process first in the queue");
+            //System.err.println("release message wasn't from the process first in the queue");
         }
     }
 
@@ -86,7 +86,7 @@ public class LamportMutex {
             pending_replies.remove(new Integer(msg.getSender()));
         }
         else {
-            System.err.println("got reply but we don't have a pending request, something is wrong");
+            //System.err.println("got reply but we don't have a pending request, something is wrong");
         }
     }
 
