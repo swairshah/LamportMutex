@@ -1,6 +1,4 @@
-% Lamport's Mutual Exclution Algorithm Project
-% Swair Shah
-% 29-Jun-2014
+## Lamport's Mutual Exclution Algorithm Project
 
 ## Code Overview
 
